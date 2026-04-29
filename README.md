@@ -1,6 +1,12 @@
 # pypa/gh-action-pypi-publish
 
-Hardened GitHub Action by [Chainguard](https://www.chainguard.dev).
+Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at [https://github.com/pypa/gh-action-pypi-publish](https://github.com/pypa/gh-action-pypi-publish).
+
+## Versions
+
+| Version | Tag | Upstream commit |
+|---------|-----|-----------------|
+| v1.13.0 | [`v1.13.0`](https://github.com/chainguard-actions/gh-action-pypi-publish/tree/v1.13.0) | — |
 
 ## Privacy
 
