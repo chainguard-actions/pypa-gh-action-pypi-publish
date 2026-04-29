@@ -1,5 +1,6 @@
 {
   "owner": "pypa",
   "name": "gh-action-pypi-publish",
-  "visibility": ""
+  "visibility": "internal",
+  "description": "The blessed :octocat: GitHub Action, for publishing your :package: distribution files to PyPI, the tokenless way: https://github.com/marketplace/actions/pypi-publish"
 }
