@@ -1,6 +1,6 @@
 # pypa/gh-action-pypi-publish
 
-The blessed :octocat: GitHub Action, for publishing your :package: distribution files to PyPI, the tokenless way: https://github.com/marketplace/actions/pypi-publish
+Upload Python distribution packages to PyPI
 
 Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at [https://github.com/pypa/gh-action-pypi-publish](https://github.com/pypa/gh-action-pypi-publish).
 
