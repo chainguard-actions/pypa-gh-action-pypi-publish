@@ -76,7 +76,7 @@ packaging==25.0
     #   twine
 platformdirs==4.4.0
     # via sigstore
-pyasn1==0.6.3
+pyasn1==0.6.1
     # via
     #   pypi-attestations
     #   sigstore
@@ -103,7 +103,7 @@ python-dateutil==2.9.0.post0
     # via betterproto
 readme-renderer==44.0
     # via twine
-requests==2.33.0
+requests==2.32.5
     # via
     #   -r runtime.in
     #   id
@@ -113,7 +113,7 @@ requests==2.33.0
     #   twine
 requests-toolbelt==1.0.0
     # via twine
-rfc3161-client==1.0.6
+rfc3161-client==1.0.4
     # via sigstore
 rfc3986==2.0.0
     # via
@@ -152,7 +152,7 @@ typing-extensions==4.15.0
     #   typing-inspection
 typing-inspection==0.4.1
     # via pydantic
-urllib3==2.6.3
+urllib3==2.5.0
     # via
     #   requests
     #   tuf

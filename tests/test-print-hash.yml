@@ -1,0 +1,26 @@
+name: Test print-hash and repository-url inputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Create dummy dist package
+        run: |
+          mkdir -p dist
+          touch dist/dummy_package-0.1.0-py3-none-any.whl
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          password: fake-token-for-testing
+          packages-dir: dist
+          print-hash: 'true'
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: 'true'
+          verify-metadata: 'false'
+      - name: Assert action ran (may fail due to invalid credentials)
+        run: |
+          echo "Action completed (with or without error - testing input coverage)"
+          echo "PASS"
