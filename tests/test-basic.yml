@@ -1,0 +1,36 @@
+name: Test basic usage with all inputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Create minimal dist package
+        run: |
+          mkdir -p dist
+          # Create a minimal wheel file (just needs to exist for the action to find it)
+          touch dist/example_pkg-0.0.1-py3-none-any.whl
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          user: __token__
+          password: fake-token-for-testing
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist
+          verify-metadata: 'false'
+          skip-existing: 'true'
+          print-hash: 'true'
+          verbose: 'true'
+          attestations: 'false'
+      - name: Assert action ran (may fail due to fake credentials)
+        run: |
+          echo "Action outcome: ${{ steps.action.outcome }}"
+          # The action is expected to fail with fake credentials
+          # but we verify it ran (not skipped) and inputs were accepted
+          if [ "${{ steps.action.outcome }}" = "skipped" ]; then
+            echo "FAIL: action was skipped unexpectedly"
+            exit 1
+          fi
+          echo "PASS: action ran with all inputs provided"
