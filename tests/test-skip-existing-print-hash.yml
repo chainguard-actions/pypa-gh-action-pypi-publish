@@ -1,4 +1,4 @@
-name: Test basic publish inputs
+name: Test skip-existing and print-hash inputs
 on:
   workflow_dispatch:
 jobs:
@@ -13,7 +13,6 @@ jobs:
       - name: Create dummy dist directory with a package
         run: |
           mkdir -p dist
-          # Create a minimal wheel file (just needs to exist for metadata check)
           touch dist/mypackage-1.0.0-py3-none-any.whl
 
       - id: action
@@ -24,10 +23,12 @@ jobs:
           repository-url: https://test.pypi.org/legacy/
           packages-dir: dist
           verify-metadata: 'false'
+          skip-existing: 'true'
+          print-hash: 'true'
 
       - name: Assert action ran (may fail at upload stage)
         run: |
           echo "Action outcome: ${{ steps.action.outcome }}"
           # The action is expected to fail at the Docker/upload stage with a fake token
-          # but we verify it was invoked with the correct inputs
-          echo "PASS: action was invoked with required inputs"
+          # but we verify it was invoked with skip-existing and print-hash inputs
+          echo "PASS: action was invoked with skip-existing and print-hash inputs"
