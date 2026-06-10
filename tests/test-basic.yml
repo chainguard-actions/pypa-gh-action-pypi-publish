@@ -1,4 +1,4 @@
-name: Test basic usage with core inputs
+name: Test basic usage with password and repository-url
 on:
   workflow_dispatch:
 jobs:
@@ -6,21 +6,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Create dummy dist directory with a fake package
+      - name: Create dummy dist directory with a fake wheel
         run: |
           mkdir -p dist
-          # Create a minimal wheel file (just needs to exist for metadata check)
-          echo "fake" > dist/fake_package-0.1.0-py3-none-any.whl
-      - name: Run action (expect failure - no real credentials)
-        id: action
+          # Create a minimal fake wheel file so the action has something to upload
+          touch dist/dummy_package-0.1.0-py3-none-any.whl
+      - id: action
         uses: .
         continue-on-error: true
         with:
           password: fake-token-for-testing
           repository-url: https://test.pypi.org/legacy/
-          packages-dir: dist
           verify-metadata: 'false'
-      - name: Assert action ran (may fail due to no real credentials)
+      - name: Assert action ran (may fail due to invalid token)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
         run: |
-          echo "Action completed (with or without error - expected in test environment)"
-          echo "PASS: inputs were accepted by the action"
+          echo "action outcome: $OUTCOME"
+          if [ "$OUTCOME" = "skipped" ]; then
+            echo "FAIL: action was skipped unexpectedly"
+            exit 1
+          fi
+          echo "PASS: action ran (outcome=$OUTCOME, expected failure due to fake token)"
