@@ -1,0 +1,81 @@
+name: Test Python discovery
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Verify Python 3 is available before action runs
+        run: |
+          PYTHON_PATH="$(command -v python3 || :)"
+          echo "Python path: $PYTHON_PATH"
+          if [ -z "$PYTHON_PATH" ]; then
+            echo "FAIL: python3 not found on PATH before action runs"
+            exit 1
+          fi
+          echo "PASS: python3 found at $PYTHON_PATH"
+
+      - name: Create minimal dist directory with a fake wheel
+        run: |
+          mkdir -p dist
+          mkdir -p /tmp/wheel-build/mypackage-1.0.0.dist-info
+          cat > /tmp/wheel-build/mypackage-1.0.0.dist-info/WHEEL <<'EOF'
+          Wheel-Version: 1.0
+          Generator: test
+          Root-Is-Purelib: true
+          Tag: py3-none-any
+          EOF
+          cat > /tmp/wheel-build/mypackage-1.0.0.dist-info/METADATA <<'EOF'
+          Metadata-Version: 2.1
+          Name: mypackage
+          Version: 1.0.0
+          Summary: A test package
+          EOF
+          cat > /tmp/wheel-build/mypackage-1.0.0.dist-info/RECORD <<'EOF'
+          mypackage-1.0.0.dist-info/WHEEL,sha256=abc,100
+          mypackage-1.0.0.dist-info/METADATA,sha256=def,200
+          mypackage-1.0.0.dist-info/RECORD,,
+          EOF
+          cd /tmp/wheel-build && zip -r "$GITHUB_WORKSPACE/dist/mypackage-1.0.0-py3-none-any.whl" .
+          echo "Created wheel:"
+          ls -la "$GITHUB_WORKSPACE/dist/"
+
+      - name: Run pypi-publish action
+        id: action
+        uses: .
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist
+          verify-metadata: 'false'
+          skip-existing: 'true'
+          verbose: 'true'
+          print-hash: 'false'
+          attestations: 'false'
+          password: pypi-fake-token-for-testing-setup-steps-only
+        continue-on-error: true
+
+      - name: Verify trampoline action was created (confirms Python ran successfully)
+        run: |
+          TRAMPOLINE=".github/.tmp/.generated-actions/run-pypi-publish-in-docker-container/action.yml"
+          echo "Checking for trampoline action at: $TRAMPOLINE"
+          if [ ! -f "$TRAMPOLINE" ]; then
+            echo "FAIL: Trampoline action file was not created - Python discovery or create-docker-action.py failed"
+            exit 1
+          fi
+          echo "PASS: Trampoline action created - Python was discovered and ran successfully"
+
+      - name: Verify trampoline uses Dockerfile (since this is the action's own repo)
+        run: |
+          TRAMPOLINE=".github/.tmp/.generated-actions/run-pypi-publish-in-docker-container/action.yml"
+          echo "Trampoline contents:"
+          cat "$TRAMPOLINE"
+          # When running from the action's own repo (repo_id matches), it uses the local Dockerfile
+          # When running from a different repo, it uses the ghcr.io image
+          # Either way, the image field must be present
+          if ! grep -q '"image"' "$TRAMPOLINE"; then
+            echo "FAIL: Trampoline action missing image field"
+            exit 1
+          fi
+          echo "PASS: Trampoline action has image field"

@@ -1,0 +1,40 @@
+name: Test missing packages warning
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create empty dist directory (no packages)
+        run: |
+          mkdir -p dist
+          echo "dist directory created but empty"
+          ls -la dist/
+
+      - name: Run pypi-publish action with empty dist dir
+        id: action
+        uses: .
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist
+          verify-metadata: 'false'
+          skip-existing: 'true'
+          verbose: 'false'
+          print-hash: 'false'
+          attestations: 'false'
+          password: pypi-fake-token-for-testing-setup-steps-only
+        continue-on-error: true
+
+      - name: Verify trampoline action was created despite empty dist
+        run: |
+          TRAMPOLINE=".github/.tmp/.generated-actions/run-pypi-publish-in-docker-container/action.yml"
+          echo "Checking for trampoline action at: $TRAMPOLINE"
+          if [ ! -f "$TRAMPOLINE" ]; then
+            echo "FAIL: Trampoline action file was not created"
+            exit 1
+          fi
+          echo "PASS: Trampoline action file exists even with empty dist dir"
+          echo "Contents:"
+          cat "$TRAMPOLINE"

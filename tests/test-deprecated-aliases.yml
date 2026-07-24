@@ -1,0 +1,59 @@
+name: Test deprecated input aliases
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create minimal dist directory with a fake wheel
+        run: |
+          mkdir -p dist
+          mkdir -p /tmp/wheel-build/mypackage-1.0.0.dist-info
+          cat > /tmp/wheel-build/mypackage-1.0.0.dist-info/WHEEL <<'EOF'
+          Wheel-Version: 1.0
+          Generator: test
+          Root-Is-Purelib: true
+          Tag: py3-none-any
+          EOF
+          cat > /tmp/wheel-build/mypackage-1.0.0.dist-info/METADATA <<'EOF'
+          Metadata-Version: 2.1
+          Name: mypackage
+          Version: 1.0.0
+          Summary: A test package
+          EOF
+          cat > /tmp/wheel-build/mypackage-1.0.0.dist-info/RECORD <<'EOF'
+          mypackage-1.0.0.dist-info/WHEEL,sha256=abc,100
+          mypackage-1.0.0.dist-info/METADATA,sha256=def,200
+          mypackage-1.0.0.dist-info/RECORD,,
+          EOF
+          cd /tmp/wheel-build && zip -r "$GITHUB_WORKSPACE/dist/mypackage-1.0.0-py3-none-any.whl" .
+          echo "Created wheel:"
+          ls -la "$GITHUB_WORKSPACE/dist/"
+
+      - name: Run pypi-publish action using deprecated snake_case aliases
+        id: action
+        uses: .
+        with:
+          repository_url: https://test.pypi.org/legacy/
+          packages_dir: dist
+          verify_metadata: 'false'
+          skip_existing: 'true'
+          verbose: 'false'
+          print_hash: 'false'
+          attestations: 'false'
+          password: pypi-fake-token-for-testing-setup-steps-only
+        continue-on-error: true
+
+      - name: Verify trampoline action was created (deprecated aliases were accepted)
+        run: |
+          TRAMPOLINE=".github/.tmp/.generated-actions/run-pypi-publish-in-docker-container/action.yml"
+          echo "Checking for trampoline action at: $TRAMPOLINE"
+          if [ ! -f "$TRAMPOLINE" ]; then
+            echo "FAIL: Trampoline action file was not created - deprecated aliases may not have been processed"
+            exit 1
+          fi
+          echo "PASS: Trampoline action created - deprecated aliases were accepted"
+          echo "Contents:"
+          cat "$TRAMPOLINE"
