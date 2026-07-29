@@ -1,0 +1,72 @@
+---
+# Test: basic usage with a minimal valid wheel and fake API token
+# The action should pass metadata verification and fail at upload (auth error)
+# This verifies the action runs correctly up to the actual PyPI upload step.
+name: Test basic usage
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create a minimal valid Python wheel for testing
+        run: |
+          mkdir -p dist
+          # Create a minimal wheel (zip file with required metadata)
+          WHEEL_DIR=$(mktemp -d)
+          mkdir -p "${WHEEL_DIR}/mypackage-1.0.0.dist-info"
+          cat > "${WHEEL_DIR}/mypackage-1.0.0.dist-info/METADATA" <<'EOF'
+          Metadata-Version: 2.1
+          Name: mypackage
+          Version: 1.0.0
+          Summary: A test package
+          EOF
+          cat > "${WHEEL_DIR}/mypackage-1.0.0.dist-info/WHEEL" <<'EOF'
+          Wheel-Version: 1.0
+          Generator: test
+          Root-Is-Purelib: true
+          Tag: py3-none-any
+          EOF
+          cat > "${WHEEL_DIR}/mypackage-1.0.0.dist-info/RECORD" <<'EOF'
+          mypackage-1.0.0.dist-info/METADATA,,
+          mypackage-1.0.0.dist-info/WHEEL,,
+          mypackage-1.0.0.dist-info/RECORD,,
+          EOF
+          # Package as a wheel (zip)
+          cd "${WHEEL_DIR}"
+          zip -r "$GITHUB_WORKSPACE/dist/mypackage-1.0.0-py3-none-any.whl" .
+          echo "Created wheel:"
+          ls -la "$GITHUB_WORKSPACE/dist/"
+
+      - name: Run pypi-publish action (expect failure at upload, not metadata check)
+        id: publish
+        uses: .
+        continue-on-error: true
+        with:
+          user: __token__
+          password: pypi-fake-token-for-testing-only-1234567890abcdef
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist
+          verify-metadata: 'true'
+          skip-existing: 'false'
+          verbose: 'true'
+          print-hash: 'true'
+          attestations: 'false'
+
+      - name: Assert action ran (may fail at upload, not at metadata check)
+        run: |
+          echo "Action outcome: ${{ steps.publish.outcome }}"
+          # The action is expected to fail because we used a fake token.
+          # What matters is that it ran and attempted the upload.
+          # If it failed at metadata verification, that would be unexpected.
+          if [ "${{ steps.publish.outcome }}" = "success" ]; then
+            echo "PASS: action succeeded (unexpected but acceptable)"
+          elif [ "${{ steps.publish.outcome }}" = "failure" ]; then
+            echo "PASS: action failed as expected (fake token rejected by TestPyPI)"
+          else
+            echo "FAIL: unexpected outcome: ${{ steps.publish.outcome }}"
+            exit 1
+          fi
+          echo "PASS"

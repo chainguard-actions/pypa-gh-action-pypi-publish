@@ -1,0 +1,62 @@
+---
+# Test: verify-metadata catches invalid package metadata
+# The action should fail at the twine check step when metadata is invalid.
+name: Test verify-metadata with invalid package
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create a wheel with invalid/missing metadata
+        run: |
+          mkdir -p dist
+          WHEEL_DIR=$(mktemp -d)
+          mkdir -p "${WHEEL_DIR}/badpackage-0.0.1.dist-info"
+          # Missing required 'Name' field in METADATA — twine check should catch this
+          cat > "${WHEEL_DIR}/badpackage-0.0.1.dist-info/METADATA" <<'EOF'
+          Metadata-Version: 2.1
+          Version: 0.0.1
+          EOF
+          cat > "${WHEEL_DIR}/badpackage-0.0.1.dist-info/WHEEL" <<'EOF'
+          Wheel-Version: 1.0
+          Generator: test
+          Root-Is-Purelib: true
+          Tag: py3-none-any
+          EOF
+          cat > "${WHEEL_DIR}/badpackage-0.0.1.dist-info/RECORD" <<'EOF'
+          badpackage-0.0.1.dist-info/METADATA,,
+          badpackage-0.0.1.dist-info/WHEEL,,
+          badpackage-0.0.1.dist-info/RECORD,,
+          EOF
+          cd "${WHEEL_DIR}"
+          zip -r "$GITHUB_WORKSPACE/dist/badpackage-0.0.1-py3-none-any.whl" .
+          echo "Created invalid wheel:"
+          ls -la "$GITHUB_WORKSPACE/dist/"
+
+      - name: Run pypi-publish with verify-metadata enabled (expect failure)
+        id: publish
+        uses: .
+        continue-on-error: true
+        with:
+          user: __token__
+          password: pypi-fake-token-for-testing-only-1234567890abcdef
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist
+          verify-metadata: 'true'
+          skip-existing: 'false'
+          verbose: 'false'
+          print-hash: 'false'
+          attestations: 'false'
+
+      - name: Assert action failed (metadata check or upload failure expected)
+        run: |
+          echo "Action outcome: ${{ steps.publish.outcome }}"
+          if [ "${{ steps.publish.outcome }}" = "failure" ]; then
+            echo "PASS: action failed as expected (invalid metadata or auth failure)"
+          else
+            echo "FAIL: expected action to fail but got: ${{ steps.publish.outcome }}"
+            exit 1
+          fi

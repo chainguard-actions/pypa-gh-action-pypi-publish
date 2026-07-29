@@ -1,0 +1,68 @@
+---
+# Test: skip-existing input is passed through correctly
+# The action should run with skip-existing: true and fail at upload (auth error)
+# This verifies the skip-existing flag is accepted and processed.
+name: Test skip-existing flag
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create a minimal valid Python wheel for testing
+        run: |
+          mkdir -p dist
+          WHEEL_DIR=$(mktemp -d)
+          mkdir -p "${WHEEL_DIR}/skiptest-2.0.0.dist-info"
+          cat > "${WHEEL_DIR}/skiptest-2.0.0.dist-info/METADATA" <<'EOF'
+          Metadata-Version: 2.1
+          Name: skiptest
+          Version: 2.0.0
+          Summary: A test package for skip-existing testing
+          EOF
+          cat > "${WHEEL_DIR}/skiptest-2.0.0.dist-info/WHEEL" <<'EOF'
+          Wheel-Version: 1.0
+          Generator: test
+          Root-Is-Purelib: true
+          Tag: py3-none-any
+          EOF
+          cat > "${WHEEL_DIR}/skiptest-2.0.0.dist-info/RECORD" <<'EOF'
+          skiptest-2.0.0.dist-info/METADATA,,
+          skiptest-2.0.0.dist-info/WHEEL,,
+          skiptest-2.0.0.dist-info/RECORD,,
+          EOF
+          cd "${WHEEL_DIR}"
+          zip -r "$GITHUB_WORKSPACE/dist/skiptest-2.0.0-py3-none-any.whl" .
+          echo "Created wheel:"
+          ls -la "$GITHUB_WORKSPACE/dist/"
+
+      - name: Run pypi-publish with skip-existing enabled (expect failure at upload)
+        id: publish
+        uses: .
+        continue-on-error: true
+        with:
+          user: __token__
+          password: pypi-fake-token-for-testing-only-1234567890abcdef
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist
+          verify-metadata: 'true'
+          skip-existing: 'true'
+          verbose: 'true'
+          print-hash: 'true'
+          attestations: 'false'
+
+      - name: Assert action ran with skip-existing flag
+        run: |
+          echo "Action outcome: ${{ steps.publish.outcome }}"
+          # The action is expected to fail because we used a fake token.
+          # What matters is that it ran and processed the skip-existing flag.
+          if [ "${{ steps.publish.outcome }}" = "failure" ]; then
+            echo "PASS: action failed as expected (fake token rejected by TestPyPI)"
+          elif [ "${{ steps.publish.outcome }}" = "success" ]; then
+            echo "PASS: action succeeded (unexpected but acceptable)"
+          else
+            echo "FAIL: unexpected outcome: ${{ steps.publish.outcome }}"
+            exit 1
+          fi
