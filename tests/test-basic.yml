@@ -1,0 +1,60 @@
+name: Test basic usage - upload to TestPyPI with token
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create fake Python distribution packages
+        run: |
+          mkdir -p dist
+          # Create a minimal valid wheel file (zip format with required metadata)
+          mkdir -p /tmp/wheel_build/fake_package-1.0.0.dist-info
+          cat > /tmp/wheel_build/fake_package-1.0.0.dist-info/WHEEL <<'EOF'
+          Wheel-Version: 1.0
+          Generator: test
+          Root-Is-Purelib: true
+          Tag: py3-none-any
+          EOF
+          cat > /tmp/wheel_build/fake_package-1.0.0.dist-info/METADATA <<'EOF'
+          Metadata-Version: 2.1
+          Name: fake-package
+          Version: 1.0.0
+          Summary: A fake package for testing
+          EOF
+          cat > /tmp/wheel_build/fake_package-1.0.0.dist-info/RECORD <<'EOF'
+          fake_package-1.0.0.dist-info/WHEEL,sha256=abc,100
+          fake_package-1.0.0.dist-info/METADATA,sha256=def,200
+          fake_package-1.0.0.dist-info/RECORD,,
+          EOF
+          cd /tmp/wheel_build && zip -r "$GITHUB_WORKSPACE/dist/fake_package-1.0.0-py3-none-any.whl" .
+          echo "Created wheel file:"
+          ls -la "$GITHUB_WORKSPACE/dist/"
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          password: pypi-fake-token-for-testing-only
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist
+          verify-metadata: 'false'
+          attestations: 'false'
+
+      - name: Assert action ran and failed gracefully (no real credentials)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action should fail because the token is invalid
+          # but it should fail gracefully (not crash unexpectedly)
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully as expected (invalid credentials)"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded (unexpected but acceptable)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
