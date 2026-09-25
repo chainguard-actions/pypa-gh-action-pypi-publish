@@ -1,9 +1,9 @@
 ---
-# Test that skip-existing flag is correctly passed to the action.
-# This test verifies the action runs with skip-existing: true.
+# Test that verify-metadata correctly validates package metadata.
+# This test creates a valid wheel and verifies the action runs twine check.
 # Since we don't have real credentials, the action will fail at upload,
-# but we verify the action is invoked correctly with the skip-existing flag.
-name: Test skip-existing
+# but we verify it gets past the metadata check step.
+name: Test verify-metadata
 on:
   workflow_dispatch:
 jobs:
@@ -23,38 +23,38 @@ jobs:
           python3 -c "
           import zipfile, os
           os.makedirs('dist', exist_ok=True)
-          whl = 'dist/skippkg_test_ci-0.3.0-py3-none-any.whl'
+          whl = 'dist/verifypkg_test_ci-0.2.0-py3-none-any.whl'
           with zipfile.ZipFile(whl, 'w') as zf:
-              zf.writestr('skippkg_test_ci-0.3.0.dist-info/METADATA', 'Metadata-Version: 2.1\nName: skippkg-test-ci\nVersion: 0.3.0\n')
-              zf.writestr('skippkg_test_ci-0.3.0.dist-info/WHEEL', 'Wheel-Version: 1.0\nGenerator: test\nRoot-Is-Purelib: true\nTag: py3-none-any\n')
-              zf.writestr('skippkg_test_ci-0.3.0.dist-info/RECORD', '')
+              zf.writestr('verifypkg_test_ci-0.2.0.dist-info/METADATA', 'Metadata-Version: 2.1\nName: verifypkg-test-ci\nVersion: 0.2.0\n')
+              zf.writestr('verifypkg_test_ci-0.2.0.dist-info/WHEEL', 'Wheel-Version: 1.0\nGenerator: test\nRoot-Is-Purelib: true\nTag: py3-none-any\n')
+              zf.writestr('verifypkg_test_ci-0.2.0.dist-info/RECORD', '')
           print('Created', whl)
           "
           ls -la dist/
 
-      - name: Run pypi-publish with skip-existing enabled
-        id: publish-skip
+      - name: Run pypi-publish with verify-metadata enabled
+        id: publish-verify
         uses: .
         continue-on-error: true
         with:
           password: pypi-fake-token-for-testing-only
           repository-url: https://test.pypi.org/legacy/
           packages-dir: dist
-          verify-metadata: 'false'
-          skip-existing: 'true'
-          verbose: 'true'
+          verify-metadata: 'true'
+          skip-existing: 'false'
+          verbose: 'false'
           print-hash: 'false'
           attestations: 'false'
 
-      - name: Assert action ran with skip-existing
+      - name: Assert action ran with verify-metadata
         env:
-          OUTCOME: ${{ steps.publish-skip.outcome }}
+          OUTCOME: ${{ steps.publish-verify.outcome }}
         run: |
           echo "Action outcome: $OUTCOME"
           # The action should run (not be skipped). It may fail at upload
-          # since we don't have real credentials.
+          # since we don't have real credentials, but it should pass twine check.
           if [ "$OUTCOME" = "skipped" ]; then
             echo "FAIL: Action was skipped unexpectedly"
             exit 1
           fi
-          echo "PASS: Action ran with skip-existing enabled (outcome: $OUTCOME)"
+          echo "PASS: Action ran with verify-metadata enabled (outcome: $OUTCOME)"

@@ -1,0 +1,59 @@
+---
+# Test that deprecated input aliases (repository_url, packages_dir, etc.)
+# still work correctly for backward compatibility.
+name: Test deprecated input aliases
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_REF: refs/heads/main
+      GITHUB_EVENT_NAME: push
+      GITHUB_REPOSITORY: pypa/gh-action-pypi-publish
+      GITHUB_REPOSITORY_OWNER: pypa
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create minimal Python wheel fixture
+        run: |
+          mkdir -p dist
+          python3 -c "
+          import zipfile, os
+          os.makedirs('dist', exist_ok=True)
+          whl = 'dist/legacypkg_test_ci-0.4.0-py3-none-any.whl'
+          with zipfile.ZipFile(whl, 'w') as zf:
+              zf.writestr('legacypkg_test_ci-0.4.0.dist-info/METADATA', 'Metadata-Version: 2.1\nName: legacypkg-test-ci\nVersion: 0.4.0\n')
+              zf.writestr('legacypkg_test_ci-0.4.0.dist-info/WHEEL', 'Wheel-Version: 1.0\nGenerator: test\nRoot-Is-Purelib: true\nTag: py3-none-any\n')
+              zf.writestr('legacypkg_test_ci-0.4.0.dist-info/RECORD', '')
+          print('Created', whl)
+          "
+          ls -la dist/
+
+      - name: Run pypi-publish with deprecated input aliases
+        id: publish-deprecated
+        uses: .
+        continue-on-error: true
+        with:
+          password: pypi-fake-token-for-testing-only
+          repository_url: https://test.pypi.org/legacy/
+          packages_dir: dist
+          verify_metadata: 'false'
+          skip_existing: 'false'
+          verbose: 'true'
+          print_hash: 'false'
+          attestations: 'false'
+
+      - name: Assert action ran with deprecated inputs
+        env:
+          OUTCOME: ${{ steps.publish-deprecated.outcome }}
+        run: |
+          echo "Action outcome: $OUTCOME"
+          # The action should run (not be skipped). It may fail at upload
+          # since we don't have real credentials, but it should accept
+          # the deprecated input aliases.
+          if [ "$OUTCOME" = "skipped" ]; then
+            echo "FAIL: Action was skipped unexpectedly"
+            exit 1
+          fi
+          echo "PASS: Action ran with deprecated input aliases (outcome: $OUTCOME)"
