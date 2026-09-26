@@ -121,13 +121,10 @@ runs:
       if: steps.pre-installed-python.outputs.python-path == ''
       id: new-python
       # yamllint disable-line rule:line-length
-      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      uses: chainguard-actions/actions-setup-python@69608a2586b78d6a34fa2f1b4d6a1b606adb8a5b # v6.2.0
       with:
         python-version: 3.x
     - name: Create Docker container action
-      run: |
-        # Create Docker container action
-        "$PYTHON_PATH" "$ACTION_PATH/create-docker-action.py"
       env:
         PYTHON_PATH: >-
           ${{
@@ -160,6 +157,9 @@ runs:
             github.event.pull_request.base.repo.id
             || github.repository_id
           }}
+      run: |
+        # Create Docker container action
+        "$PYTHON_PATH" "$ACTION_PATH/create-docker-action.py"
       shell: bash
     - name: Run Docker container
       # The generated trampoline action must exist in the allowlisted
