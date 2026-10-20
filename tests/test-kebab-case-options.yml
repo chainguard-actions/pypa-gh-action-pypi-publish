@@ -1,0 +1,53 @@
+name: Test kebab-case verify/skip/print-hash options
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Clean any stale generated action
+        run: rm -rf "$GITHUB_WORKSPACE/.github/.tmp/.generated-actions"
+      # No dists exist and the index is unreachable, so the run cannot
+      # succeed; verify the action accepts the kebab-case options and
+      # generates the trampoline action before failing.
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          password: not-a-real-token
+          repository-url: https://example.invalid/legacy/
+          packages-dir: does-not-exist-dist/
+          verify-metadata: 'false'
+          skip-existing: 'true'
+          print-hash: 'true'
+          verbose: 'true'
+          attestations: 'false'
+      - name: Assert step outcome
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "FAIL: expected failure (no dists / unreachable index), got '$OUTCOME'"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert trampoline generated
+        run: |
+          F="$GITHUB_WORKSPACE/.github/.tmp/.generated-actions/run-pypi-publish-in-docker-container/action.yml"
+          if [ ! -f "$F" ]; then
+            echo "FAIL: generated action not found"
+            exit 1
+          fi
+          cat "$F"; echo
+          python3 - "$F" <<'EOF'
+          import json, sys
+          d = json.load(open(sys.argv[1], encoding='utf-8'))
+          if d.get('runs', {}).get('using') != 'docker':
+              print('FAIL: runs.using is not docker'); sys.exit(1)
+          for k in ('verify-metadata', 'skip-existing', 'print-hash'):
+              if k not in d.get('inputs', {}):
+                  print(f'FAIL: missing input {k}'); sys.exit(1)
+          print('PASS')
+          EOF
