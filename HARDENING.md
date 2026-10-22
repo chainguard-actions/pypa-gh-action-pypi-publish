@@ -16,14 +16,11 @@ Action **pypa--gh-action-pypi-publish/v1.13.0** was hardened automatically. 1 fi
 
 ### script-injection (severity: high)
 
-The 'Create Docker container action' step in action.yml directly interpolates GitHub Actions expressions inside a `run:` shell command string (rule a). Specifically: `${{ steps.pre-installed-python.outputs.python-path }}`, `${{ steps.new-python.outputs.python-path }}`, and `${{ github.action_path }}` are all embedded directly in the shell command. These values flow through YAML template substitution before the shell processes them, allowing an attacker-controlled value (e.g. a crafted python-path output from a prior step, or a manipulated action_path) to inject arbitrary shell commands. The offending lines are:
-  - `${{ steps.pre-installed-python.outputs.python-path == '' && steps.new-python.outputs.python-path || steps.pre-installed-python.outputs.python-path }}` used as the Python interpreter command
-  - `'${{ github.action_path }}/create-docker-action.py'` used as the script path argument
-These should be moved to `env:` variables and then referenced as quoted shell variables (e.g. `"$PYTHON_PATH"`, `"$ACTION_PATH"`).
+Sub-rule (a): the run: block in step 'Create Docker container action' puts GitHub Actions expressions straight into the shell command: `${{ steps.pre-installed-python.outputs.python-path == '' && steps.new-python.outputs.python-path || steps.pre-installed-python.outputs.python-path }} '${{ github.action_path }}/create-docker-action.py'`. The YAML template is filled in before the shell parses the line, so these values are never safely quoted. Move them into env: variables (e.g. PYTHON_PATH, ACTION_PATH) and reference them in the script as "$PYTHON_PATH" "$ACTION_PATH/create-docker-action.py".
 
 Locations:
 
-- `action.yml:109`
+- `action.yml:122`
 
 ## Iteration Notes
 
@@ -33,5 +30,10 @@ Locations:
 
 **Notes:**
 
-Fixed script injection in the 'Create Docker container action' step of action.yml. Moved the two ${{ }} expressions from the run: shell command into the env: block: (1) the Python path ternary expression (${{ steps.pre-installed-python.outputs.python-path == '' && steps.new-python.outputs.python-path || steps.pre-installed-python.outputs.python-path }}) is now set as PYTHON_PATH env var, and (2) ${{ github.action_path }} is now set as ACTION_PATH env var. The run: command now uses "$PYTHON_PATH" and "$ACTION_PATH/create-docker-action.py" as quoted shell variable references, preventing shell injection.
+I moved the two expressions in the 'Create Docker container action' step of action.yml out of the run: line and into the step's env: block. The step now runs: "$PYTHON_PATH" "$ACTION_PATH/create-docker-action.py".
+
+- PYTHON_PATH holds the same expression as before: the pre-installed Python path, or the setup-python path if none was found.
+- ACTION_PATH holds github.action_path.
+
+The step runs under shell: bash, so the "$VAR" syntax is right. The new names don't clash with the variables create-docker-action.py reads (REF, REPO, REPO_ID). I haven't run the action or re-run the analysis to confirm the finding is gone.
 
