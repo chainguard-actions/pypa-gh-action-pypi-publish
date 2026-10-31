@@ -16,11 +16,11 @@ Action **pypa--gh-action-pypi-publish/v1.14.1** was hardened automatically. 2 fi
 
 ### script-injection (severity: high)
 
-Sub-rule (a): the 'Create Docker container action' step puts GitHub Actions expressions directly inside the run: script. It uses `${{ steps.pre-installed-python.outputs.python-path == '' && steps.new-python.outputs.python-path || steps.pre-installed-python.outputs.python-path }} '${{ github.action_path }}/create-docker-action.py'`. The runner pastes the step outputs and github.action_path into the script before the shell runs it. Pass them in through env: variables instead, and use them double-quoted, e.g. "$PYTHON_PATH" "$GITHUB_ACTION_PATH/create-docker-action.py".
+Sub-rule (a): GitHub Actions expressions are placed directly inside the run: script of the 'Create Docker container action' step. The script is `${{ steps.pre-installed-python.outputs.python-path == '' && steps.new-python.outputs.python-path || steps.pre-installed-python.outputs.python-path }} '${{ github.action_path }}/create-docker-action.py'`. Both the steps.*.outputs.* expression and the github.action_path expression are substituted into the script text before the shell runs it. Fix: pass them in through env: variables (e.g. PYTHON_PATH, ACTION_PATH) and call them as "$PYTHON_PATH" "$ACTION_PATH/create-docker-action.py". You can also use the runner-provided $GITHUB_ACTION_PATH.
 
 Locations:
 
-- `action.yml:128`
+- `action.yml:127`
 
 ### prior-fix (severity: high)
 
@@ -140,5 +140,5 @@ Locations:
 
 **Notes:**
 
-In action.yml, the 'Create Docker container action' step no longer pastes GitHub expressions into its run: script. The Python-path expression now sits in env as PYTHON_PATH. The script runs "$PYTHON_PATH" "$GITHUB_ACTION_PATH/create-docker-action.py", using the action path variable the runner sets for each step. I haven't run the action to test this. As far as I can tell from the visible part of the previous patch, its changes were only formatting: comment spacing and folding the multi-line input descriptions onto one line. I didn't re-apply that. The rest of the patch was cut off, so I assumed the security part was this same script-injection fix, and this edit covers it. Separately, I left create-docker-action.py unchanged. Its existing logic builds the container image name from github.action_repository and action_ref.
+In action.yml, the 'Create Docker container action' step's script contained two ${{ }} expressions. I took both out. The Python path expression now goes in through a PYTHON_PATH env var. The action_path expression is replaced by the runner's own $GITHUB_ACTION_PATH. The script now runs "$PYTHON_PATH" "$GITHUB_ACTION_PATH/create-docker-action.py". The REF, REPO and REPO_ID env settings are unchanged. Apart from formatting, the previous harden only made this same security change, so this also covers the prior-fix finding. I have not run the action to confirm it still works.
 
