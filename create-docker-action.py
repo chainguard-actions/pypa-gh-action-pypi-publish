@@ -14,7 +14,8 @@ ACTION_SHELL_CHECKOUT_PATH = pathlib.Path(__file__).parent.resolve()
 
 
 def set_image(ref: str, repo: str, repo_id: str) -> str:
-    if repo_id == REPO_ID_GH_ACTION:
+    is_chainguard = repo.lower() == 'chainguard-actions/pypa-gh-action-pypi-publish'
+    if repo_id == REPO_ID_GH_ACTION or is_chainguard:
         return str(ACTION_SHELL_CHECKOUT_PATH / 'Dockerfile')
     docker_ref = ref.replace('/', '-')
     return f'docker://ghcr.io/{repo}:{docker_ref}'
