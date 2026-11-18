@@ -16,11 +16,11 @@ Action **pypa--gh-action-pypi-publish/v1.14.2** was hardened automatically. 2 fi
 
 ### script-injection (severity: high)
 
-Sub-rule (a), direct expression interpolation. The run: block of the 'Create Docker container action' step puts GitHub Actions expressions straight into the shell script: `${{ steps.pre-installed-python.outputs.python-path == '' && steps.new-python.outputs.python-path || steps.pre-installed-python.outputs.python-path }} '${{ github.action_path }}/create-docker-action.py'`. Both steps.*.outputs.* and github.action_path are filled in by the template before the shell runs, so any shell metacharacters in them get executed. Fix: pass them through env: variables (for example PYTHON_PATH and ACTION_PATH) and call them double-quoted as "$PYTHON_PATH" "$ACTION_PATH/create-docker-action.py". The runner already provides $GITHUB_ACTION_PATH for the second one.
+Sub-rule (a): GitHub Actions expressions are placed straight into the 'Create Docker container action' run: block. The lines are `${{ steps.pre-installed-python.outputs.python-path == '' && steps.new-python.outputs.python-path || steps.pre-installed-python.outputs.python-path }} '${{ github.action_path }}/create-docker-action.py'`. Both the steps.*.outputs.* values and github.action_path are substituted into the script text before the shell parses it. Fix: pass them through env: variables (for example PYTHON_PATH and ACTION_PATH) and call them double-quoted: "$PYTHON_PATH" "$ACTION_PATH/create-docker-action.py". Another option is the built-in $GITHUB_ACTION_PATH variable.
 
 Locations:
 
-- `action.yml:128`
+- `action.yml:125`
 
 ### prior-fix (severity: high)
 
@@ -140,5 +140,10 @@ Locations:
 
 **Notes:**
 
-In the 'Create Docker container action' step of action.yml, the Python path expression now sits in a new PYTHON_PATH entry under env: with the same fallback logic. The command is now "$PYTHON_PATH" "$GITHUB_ACTION_PATH/create-docker-action.py", so github.action_path is no longer pasted into the script. No other script uses a PYTHON_PATH variable. The earlier patch was cut off; the visible part only changed formatting (YAML re-wrapping, dropping '---'), so those edits were not redone, and its security change is assumed to be the same injection fix applied here. Not run or re-analysed.
+Fixed both findings, but nothing has been run yet, including the action's tests.
+
+- **script-injection (action.yml, 'Create Docker container action' step):** The Python-path expression now goes through a PYTHON_PATH env var instead of being pasted into the script. The step calls `"$PYTHON_PATH" "$GITHUB_ACTION_PATH/create-docker-action.py"`, so `github.action_path` is no longer used inline either.
+- **prior-fix:** The earlier patch shown to me was cut off. The visible part only reformats YAML comments and descriptions, which has no security effect, so I didn't redo it. I re-applied what this mirror still needs: create-docker-action.py used to build the image name from the action's own repository (`docker://ghcr.io/{repo}:{ref}`). On the mirror that points to an image nobody publishes, so every run would fail with "denied". It now returns upstream's image as a fixed value, pinned to the upstream commit and its digest: `docker://ghcr.io/pypa/gh-action-pypi-publish:dc37677b2e1c63e2034f94d8a5b11f265b73ba33@sha256:a68d05519f6d7e47372aeaddab80b851b69afa89be179ec41775c72c4e3ab2d5`. Upstream's self-test branch, which builds the local Dockerfile when the repository ID is pypa's own, is unchanged. Because I couldn't see the rest of the earlier patch, it may have contained other security changes that I have not re-applied.
+
+The REF/REPO/REPO_ID env vars and the `ref`/`repo` parameters of `set_image` are left as upstream had them. With the image fixed, `ref` and `repo` are no longer used.
 
