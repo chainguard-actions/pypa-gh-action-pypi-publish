@@ -143,7 +143,7 @@ runs:
   - name: Create Docker container action
     run: |
       # Create Docker container action
-      "$PYTHON_PATH" "$GITHUB_ACTION_PATH/create-docker-action.py"
+      "$PYTHON_PATH" "$ACTION_PATH/create-docker-action.py"
     env:
       PYTHON_PATH: >-
         ${{
@@ -151,6 +151,7 @@ runs:
           && steps.new-python.outputs.python-path
           || steps.pre-installed-python.outputs.python-path
         }}
+      ACTION_PATH: ${{ github.action_path }}
       # Set repo and ref from which to run Docker container action
       # to handle cases in which `github.action_` context is not set
       # https://github.com/actions/runner/issues/2473

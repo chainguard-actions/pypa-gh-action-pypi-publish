@@ -16,8 +16,13 @@ ACTION_SHELL_CHECKOUT_PATH = pathlib.Path(__file__).parent.resolve()
 def set_image(ref: str, repo: str, repo_id: str) -> str:
     if repo_id == REPO_ID_GH_ACTION:
         return str(ACTION_SHELL_CHECKOUT_PATH / 'Dockerfile')
-    docker_ref = ref.replace('/', '-')
-    return f'docker://ghcr.io/{repo}:{docker_ref}'
+    # Pinned to the upstream image this mirror version was built from;
+    # the mirror repository does not publish its own image.
+    return (
+        'docker://ghcr.io/pypa/gh-action-pypi-publish:'
+        'ba38be9e461d3875417946c167d0b5f3d385a247'
+        '@sha256:cc949598a1046db3a7b317448324729314c2e729bb462b4030463c5f7dfef2ec'
+    )
 
 
 image = set_image(REF, REPO, REPO_ID)
